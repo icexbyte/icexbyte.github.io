@@ -1,4 +1,4 @@
-/* global Clipboard, cdnDomain, devDomain */
+/* global Clipboard, cdn_domain */
 (function (doc) {
   'use strict';
 
@@ -32,21 +32,21 @@
   **/
   const REGEX_REPO_URL = /^https?:\/\/github\.com\/(.+?)\/(.+?)\/(?!releases\/)(?:(?:blob|raw)\/)?(.+?)\/(.+)/i;
 
+  const REGEX_GITLAB_REPO_URL = /^https?:\/\/gitlab\.com\/([^\/]+\/[^\/]+)\/(?:raw|blob)\/(.+\..+?)(?:\?.*)?$/i;
+
+  const REGEX_BITBUCKET_REPO_URL = /^https?:\/\/bitbucket\.org\/([^\/]+\/[^\/]+)\/(?:raw|src)\/(.+\..+?)(?:\?.*)?$/i;
+
   // -- Init -------------------------------------------------------------------
-  let copyButtonDev  = doc.getElementById('url-dev-copy');
   let copyButtonProd = doc.getElementById('url-prod-copy');
-  let inputDev       = doc.getElementById('url-dev');
   let inputProd      = doc.getElementById('url-prod');
   let inputUrl       = doc.getElementById('url');
 
-  new Clipboard('.url-copy-button');
+  new Clipboard('.inp-copy-button');
 
   if (doc.queryCommandSupported && doc.queryCommandSupported('copy')) {
-    copyButtonDev.style.display  = 'inline-block';
     copyButtonProd.style.display = 'inline-block';
   }
 
-  inputDev.addEventListener('focus', onInputFocus);
   inputProd.addEventListener('focus', onInputFocus);
   inputUrl.addEventListener('input', formatUrl);
 
@@ -54,11 +54,7 @@
     // On iOS, it's quite difficult to copy the value of readonly input elements (see https://git.io/vpI8Z).
     // By making the inputs non-readonly and preventing keydown we can mimic the behaviour of readonly inputs while
     // improving the copy-input-value interaction.
-    inputDev.removeAttribute('readonly')
     inputProd.removeAttribute('readonly')
-    inputDev.addEventListener('keydown', function (e) {
-      e.preventDefault();
-    });
     inputProd.addEventListener('keydown', function (e) {
       e.preventDefault();
     });
@@ -68,26 +64,22 @@
 
   // -- Functions --------------------------------------------------------------
   function formatRawGistUrl(url) {
-    inputDev.value  = url.replace(REGEX_RAW_GIST_URL, 'https://' + devDomain + '/$1');
-    inputProd.value = url.replace(REGEX_RAW_GIST_URL, 'https://' + cdnDomain + '/$1');
+    inputProd.value = url.replace(REGEX_RAW_GIST_URL, 'https://' + cdn_domain + '/gist/$1');
 
     setValid();
   }
 
   function formatRawRepoUrl(url) {
-    inputDev.value  = url.replace(REGEX_RAW_REPO_URL, 'https://' + devDomain + '/$1/$2/$3/$4');
-    inputProd.value = url.replace(REGEX_RAW_REPO_URL, 'https://' + cdnDomain + '/$1/$2/$3/$4');
+    inputProd.value = url.replace(REGEX_RAW_REPO_URL, 'https://' + cdn_domain + '/gh/$1/$2/$3/$4');
 
     setValid();
   }
 
   function formatRepoUrl(url) {
-    inputDev.value = url.replace(REGEX_REPO_URL, 'https://' + devDomain + '/$1/$2/$3/$4');
-
     let matches = url.match(REGEX_REPO_URL);
 
     if (matches[3] !== 'master') {
-      inputProd.value = url.replace(REGEX_REPO_URL, 'https://' + cdnDomain + '/$1/$2/$3/$4');
+      inputProd.value = url.replace(REGEX_REPO_URL, 'https://' + cdn_domain + '/gh/$1/$2/$3/$4');
       setValid();
       return;
     }
@@ -109,9 +101,21 @@
           ? data.sha.slice(0, 8)
           : matches[3];
 
-        inputProd.value = url.replace(REGEX_REPO_URL, `https://${cdnDomain}/$1/$2/${ref}/$4`);
+        inputProd.value = url.replace(REGEX_REPO_URL, `https://${cdn_domain}/gh/$1/$2/${ref}/$4`);
         setValid();
       });
+  }
+
+  function formatGitLabRepoUrl(url) {
+    inputProd.value = url.replace(REGEX_GITLAB_REPO_URL, 'https://' + cdn_domain + '/gl/$1/raw/$2');
+
+    setValid();
+  }
+
+  function formatBitbucketRepoUrl(url) {
+    inputProd.value = url.replace(REGEX_BITBUCKET_REPO_URL, 'https://' + cdn_domain + '/bb/$1/raw/$2');
+
+    setValid();
   }
 
   function formatUrl() {
@@ -125,6 +129,10 @@
       formatRepoUrl(url);
     } else if (REGEX_GIST_URL.test(url)) {
       requestGistUrl(url);
+    } else if (REGEX_GITLAB_REPO_URL.test(url)) {
+      formatGitLabRepoUrl(url);
+  } else if (REGEX_BITBUCKET_REPO_URL.test(url)) {
+      formatBitbucketRepoUrl(url);
     } else {
       setInvalid();
     }
@@ -171,7 +179,6 @@
   }
 
   function setInvalid() {
-    copyButtonDev.disabled  = true;
     copyButtonProd.disabled = true;
 
     inputUrl.classList.remove('valid');
@@ -182,20 +189,16 @@
       inputUrl.classList.remove('invalid');
     }
 
-    inputDev.value  = '';
     inputProd.value = '';
 
-    inputDev.classList.remove('valid');
     inputProd.classList.remove('valid');
   }
 
   function setValid() {
-    copyButtonDev.disabled  = false;
     copyButtonProd.disabled = false;
 
     inputUrl.classList.remove('invalid');
 
-    inputDev.classList.add('valid');
     inputProd.classList.add('valid');
     inputUrl.classList.add('valid');
   }
